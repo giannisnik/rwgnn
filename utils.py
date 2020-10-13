@@ -55,34 +55,34 @@ def generate_batches(adj, features, y, batch_size, device, shuffle=False):
 
     adj_lst = list()
     features_lst = list()
-    batch_n_graphs_lst = list()
+    graph_indicator_lst = list()
     y_lst = list()
 
     for i in range(0, N, batch_size):
         n_graphs = min(i+batch_size, N) - i
-        max_n_nodes = 0
-        for j in range(i, min(i+batch_size, N)):
-            if adj[index[j]].shape[0] > max_n_nodes:
-                max_n_nodes = adj[index[j]].shape[0]
-
-        n_nodes = n_graphs*max_n_nodes
+        n_nodes = sum([adj[index[j]].shape[0] for j in range(i, min(i+batch_size, N))])
 
         adj_batch = lil_matrix((n_nodes, n_nodes))
         features_batch = np.zeros((n_nodes, features[0].shape[1]))
+        graph_indicator_batch = np.zeros(n_nodes)
         y_batch = np.zeros(n_graphs)
 
+        idx = 0
         for j in range(i, min(i+batch_size, N)):
-            idx = (j-i)*max_n_nodes
-            adj_batch[idx:idx+adj[index[j]].shape[0], idx:idx+adj[index[j]].shape[0]] = adj[index[j]]    
-            features_batch[idx:idx+adj[index[j]].shape[0]-1,:] = features[index[j]][:-1]
+            n = adj[index[j]].shape[0]
+            adj_batch[idx:idx+n, idx:idx+n] = adj[index[j]]    
+            features_batch[idx:idx+n,:] = features[index[j]]
+            graph_indicator_batch[idx:idx+n] = j-i
             y_batch[j-i] = y[index[j]]
-            
+
+            idx += n
+                  
         adj_lst.append(sparse_mx_to_torch_sparse_tensor(adj_batch).to(device))
         features_lst.append(torch.FloatTensor(features_batch).to(device))
-        batch_n_graphs_lst.append(torch.LongTensor(np.array([n_graphs], dtype=np.int64)).to(device))
+        graph_indicator_lst.append(torch.LongTensor(graph_indicator_batch).to(device))
         y_lst.append(torch.LongTensor(y_batch).to(device))
 
-    return adj_lst, features_lst, batch_n_graphs_lst, y_lst
+    return adj_lst, features_lst, graph_indicator_lst, y_lst
 
 
 def accuracy(output, labels):

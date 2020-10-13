@@ -41,12 +41,12 @@ class_labels = enc.fit_transform(class_labels)
 n_classes = np.unique(class_labels).size
 y = [np.array(class_labels[i]) for i in range(class_labels.size)]
 
-kf = KFold(n_splits=10, shuffle=True, random_state=None)
+kf = KFold(n_splits=10, shuffle=True, random_state=13)
 it = 0
 accs = list()
 for train_index, test_index in kf.split(y):
     it += 1
-
+    
     idx = np.random.permutation(train_index)
     train_index = idx[:int(idx.size*0.9)].tolist()
     val_index = idx[int(idx.size*0.9):].tolist()
@@ -67,9 +67,9 @@ for train_index, test_index in kf.split(y):
     features_test = [features_lst[i] for i in test_index]
     y_test = [y[i] for i in test_index]
 
-    adj_train, features_train, batch_n_graphs_train, y_train = generate_batches(adj_train, features_train, y_train, args.batch_size, device)
-    adj_val, features_val, batch_n_graphs_val, y_val = generate_batches(adj_val, features_val, y_val, args.batch_size, device)
-    adj_test, features_test, batch_n_graphs_test, y_test = generate_batches(adj_test, features_test, y_test, args.batch_size, device)
+    adj_train, features_train, graph_indicator_train, y_train = generate_batches(adj_train, features_train, y_train, args.batch_size, device)
+    adj_val, features_val, graph_indicator_val, y_val = generate_batches(adj_val, features_val, y_val, args.batch_size, device)
+    adj_test, features_test, graph_indicator_test, y_test = generate_batches(adj_test, features_test, y_test, args.batch_size, device)
 
     n_train_batches = ceil(n_train/args.batch_size)
     n_val_batches = ceil(n_val/args.batch_size)
@@ -79,16 +79,16 @@ for train_index, test_index in kf.split(y):
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
-    def train(epoch, adj, features, batch_n_graphs, y):
+    def train(epoch, adj, features, graph_indicator, y):
         optimizer.zero_grad()
-        output = model(features, adj, batch_n_graphs)
+        output = model(adj, features, graph_indicator)
         loss_train = F.cross_entropy(output, y)
         loss_train.backward()
         optimizer.step()
         return output, loss_train
 
-    def test(adj, features, batch_n_graphs, y):
-        output = model(features, adj, batch_n_graphs)
+    def test(adj, features, graph_indicator, y):
+        output = model(adj, features, graph_indicator)
         loss_test = F.cross_entropy(output, y)
         return output, loss_test
 
@@ -102,7 +102,7 @@ for train_index, test_index in kf.split(y):
 
         # Train for one epoch
         for i in range(n_train_batches):
-            output, loss = train(epoch, adj_train[i], features_train[i], batch_n_graphs_train[i], y_train[i])
+            output, loss = train(epoch, adj_train[i], features_train[i], graph_indicator_train[i], y_train[i])
             train_loss.update(loss.item(), output.size(0))
             train_acc.update(accuracy(output.data, y_train[i].data), output.size(0))
 
@@ -112,7 +112,7 @@ for train_index, test_index in kf.split(y):
         val_acc = AverageMeter()
 
         for i in range(n_val_batches):
-            output, loss = test(adj_val[i], features_val[i], batch_n_graphs_val[i], y_val[i])
+            output, loss = test(adj_val[i], features_val[i], graph_indicator_val[i], y_val[i])
             val_loss.update(loss.item(), output.size(0))
             val_acc.update(accuracy(output.data, y_val[i].data), output.size(0))
 
@@ -146,7 +146,7 @@ for train_index, test_index in kf.split(y):
     optimizer.load_state_dict(checkpoint['optimizer'])
     
     for i in range(n_test_batches):
-        output, loss = test(adj_test[i], features_test[i], batch_n_graphs_test[i], y_test[i])
+        output, loss = test(adj_test[i], features_test[i], graph_indicator_test[i], y_test[i])
         test_loss.update(loss.item(), output.size(0))
         test_acc.update(accuracy(output.data, y_test[i].data), output.size(0))
     accs.append(test_acc.avg.cpu().numpy())
