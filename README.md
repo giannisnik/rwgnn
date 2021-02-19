@@ -1,6 +1,6 @@
 # Random Walk Graph Neural Networks
 
-This repository is the official implementation of [Random Walk Graph Neural Networks](http://www.lix.polytechnique.fr/Labo/Ioannis.Nikolentzos/files/rw_gnns_neurips20). 
+This repository is the official implementation of [Random Walk Graph Neural Networks](https://proceedings.neurips.cc/paper/2020/file/ba95d78a7c942571185308775a97a3a0-Paper.pdf). 
 
 ## Requirements
 
@@ -56,6 +56,7 @@ Please cite our paper if you use this code:
   title={Random Walk Graph Neural Networks},
   author={Nikolentzos, Giannis and Vazirgiannis, Michalis},
   booktitle={Proceedings of the 34th Conference on Neural Information Processing Systems},
+  pages={16211--16222},
   year={2020}
 }
 ```
